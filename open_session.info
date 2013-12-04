@@ -1,0 +1,3 @@
+name = Open Session
+description = Display a message to a user if they have more than one session open.
+core = 7.x

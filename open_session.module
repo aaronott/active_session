@@ -1,0 +1,234 @@
+<?php
+/**
+ * @file
+ * Main module file for open session
+ */
+
+/**
+ * Implements hook_menu()
+ */
+function open_session_menu() {
+
+  $items['open_sessions'] = array(
+    'title' => 'Open Sessions',
+    'description' => 'A list of open sessions for the current user.',
+    'page callback' => 'open_session_page',
+    'access callback' => '_open_session_access',
+    'access arguments' => array('view'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['open_session/%/%/close'] = array(
+    'title' => 'Close a Session',
+    'description' => 'A list of open sessions for the current user.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('open_session_close_session_form', 1, 2),
+    'access callback' => '_open_session_access',
+    'access arguments' => array('close'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function open_session_permission() {
+  return array(
+    'view own sessions' => array('title' => t('View own sessions')),
+    'view all sessions' => array('title' => t('View all sessions')),
+
+    'close own sessions' => array('title' => t('Close own sessions')),
+    'close all sessions' => array('title' => t('Close all sessions')),
+  );
+}
+
+/**
+ * Access
+ */
+function _open_session_access($op) {
+
+  switch($op) {
+    case 'view':
+      return (user_access('view own sessions') || user_access('view all sessions'));
+      break;
+    case 'close':
+      return (user_access('close own sessions') || user_access('close all sessions'));
+      break;
+  }
+
+  return FALSE;
+}
+
+/**
+ * Get other sessions for this user.
+ *
+ * @param int
+ *   Drupal user id.
+ *
+ * @return array
+ *   Array of session data.
+ *
+ */
+function _open_session_get_sessions($uid) {
+  $sessions = array();
+
+  $result = db_select('sessions', 's')
+    ->fields('s', array('sid','ssid', 'hostname', 'timestamp'))
+    ->condition('uid', $uid)
+    ->execute();
+
+  while ($record = $result->fetchAssoc()) {
+    $sessions[] = $record;
+  }
+
+  return $sessions;
+}
+
+/**
+ * Display the open sessions for the current user.
+ */
+function open_session_page() {
+  global $user;
+
+  $headers = array(t('IP Address'), t('Last Active'));
+  if (_open_session_access('close')) {
+    $headers += array(t('Action'));
+  }
+
+  $rows = array();
+
+  $sessions = _open_session_get_sessions($user->uid);
+  foreach ($sessions as $session) {
+
+    $hash = drupal_hash_base64($session['sid'] . $session['hostname']);
+    if ($session['sid'] == $user->sid) {
+      $action = t('Current Session');
+    }
+    else {
+      $action = l(t('Close session'), 'open_session/' . $user->uid . '/' . $hash . '/close');
+    }
+
+    $row = array(
+      $session['hostname'],
+      format_interval((time() - $session['timestamp']) , 2) . t(' ago'),
+    );
+
+    if (_open_session_access('close')) {
+      $row += array($action);
+    }
+
+    $rows[] = $row;
+  }
+
+  return theme('table', array('header' => $headers, 'rows' => $rows, 'empty' => t('No sessions to list')));
+}
+
+/**
+ * Implements hook_block_info().
+ *
+ * Create a block to display this data.
+ */
+function open_session_block_info() {
+
+  $blocks['open_session'] = array(
+    'info' => t('Open Sessions'),
+    'status' => TRUE,
+    'region' => 'footer',  // Not usually provided.
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ * This hook generates the contents of the blocks themselves.
+ */
+function open_session_block_view($delta = '') {
+
+  switch ($delta) {
+    case 'open_session':
+      $block['content'] = open_session_contents();
+      break;
+  }
+  return $block;
+}
+
+/**
+ * A module-defined block content function.
+ */
+function open_session_contents() {
+  global $user;
+
+  if ($user->uid > 0) {
+    $sessions = _open_session_get_sessions($user->uid);
+    $count = sizeof($sessions);
+    $count--; //
+
+    if ($count > 0) {
+      $markup  = t('Open in @count other @location', array('@count' => $count, '@location' => format_plural($count, t('location'), t('locations'))));
+      $markup .= ' ' . l(t('Details'), 'open_sessions', array('attributes' => array('target' => '_blank')));
+      return array('#markup' => $markup);
+    }
+  }
+
+  // nothing left, return nothing.
+  return;
+}
+
+/**
+ * Implements hook_form().
+ *
+ */
+function open_session_close_session_form($form, &$form_state, $uid, $hash) {
+  $args = func_get_args();
+
+  $form['uid'] = array(
+    '#type' => 'hidden',
+    '#value' => $uid,
+  );
+
+  $form['hash'] = array(
+    '#type' => 'hidden',
+    '#value' => $hash,
+  );
+
+  return confirm_form($form, t('Are sure you want to close this session?'), 'open_sessions', '', t('Close session'), t('Cancel'));
+}
+
+/**
+ * Implements hook_form_submit().
+ */
+function open_session_close_session_form_submit($form, &$form_state) {
+  _open_session_close_session($form_state['values']['uid'], $form_state['values']['hash']);
+}
+
+/**
+ * Delete the session based on the uid and hash
+ *
+ * @param int
+ *   Drupal user id
+ *
+ * @param string
+ *   hash created from the session hostname and session id
+ *
+ * @see drupal_
+ */
+function _open_session_close_session($uid, $hash) {
+  global $is_https, $user;
+
+  $sessions = _open_session_get_sessions($uid);
+
+  foreach ($sessions as $session) {
+    $sess_hash = drupal_hash_base64($session['sid'] . $session['hostname']);
+    if ($sess_hash == $hash) {
+      db_delete('sessions')->condition($is_https ? 'ssid' : 'sid', $session['sid'])->execute();
+      drupal_set_message("The session has been closed.");
+      break;
+    }
+  }
+
+  drupal_goto('open_sessions');
+}

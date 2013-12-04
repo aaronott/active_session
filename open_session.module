@@ -18,6 +18,15 @@ function open_session_menu() {
     'type' => MENU_CALLBACK,
   );
 
+  $items['open_sessions/all'] = array(
+    'title' => 'All Open Sessions',
+    'description' => 'A list of open sessions for all users.',
+    'page callback' => 'open_session_page',
+    'page arguments' => array('all'),
+    'access arguments' => array('view all sessions'),
+    'type' => MENU_CALLBACK,
+  );
+
   $items['open_session/%/%/close'] = array(
     'title' => 'Close a Session',
     'description' => 'A list of open sessions for the current user.',
@@ -45,7 +54,7 @@ function open_session_permission() {
 }
 
 /**
- * Access
+ * Implements access controls for open_session.
  */
 function _open_session_access($op) {
 
@@ -71,15 +80,17 @@ function _open_session_access($op) {
  *   Array of session data.
  *
  */
-function _open_session_get_sessions($uid) {
+function _open_session_get_sessions($uid = 0) {
   $sessions = array();
 
   $result = db_select('sessions', 's')
-    ->fields('s', array('sid', 'ssid', 'hostname', 'timestamp'))
-    ->condition('uid', $uid)
+    ->fields('s')
+    ->condition('uid', $uid, ($uid == 0) ? '>' : '=')
+    ->orderBy('uid', 'ASC')
     ->execute();
 
   while ($record = $result->fetchAssoc()) {
+    drupal_alter('open_session_record', $record);
     $sessions[] = $record;
   }
 
@@ -89,7 +100,7 @@ function _open_session_get_sessions($uid) {
 /**
  * Display the open sessions for the current user.
  */
-function open_session_page() {
+function open_session_page($view = 'self') {
   global $user;
 
   $headers = array(t('IP Address'), t('Last Active'));
@@ -98,8 +109,9 @@ function open_session_page() {
   }
 
   $rows = array();
+  $uid = ($view == 'all') ? 0 : $user->uid;
+  $sessions = _open_session_get_sessions($uid);
 
-  $sessions = _open_session_get_sessions($user->uid);
   foreach ($sessions as $session) {
 
     $hash = drupal_hash_base64($session['sid'] . $session['hostname']);
@@ -119,8 +131,15 @@ function open_session_page() {
       $row[] = $action;
     }
 
+    // Allow another module to alter this information.
+    drupal_alter('open_session_row', $row);
+
     $rows[] = $row;
   }
+
+    // Allow another module to alter this information.
+    drupal_alter('open_session_rows', $rows);
+    drupal_alter('open_session_headers', $headers);
 
   return theme('table', array('header' => $headers, 'rows' => $rows, 'empty' => t('No sessions to list')));
 }

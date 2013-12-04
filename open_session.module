@@ -5,7 +5,7 @@
  */
 
 /**
- * Implements hook_menu()
+ * Implements hook_menu().
  */
 function open_session_menu() {
 
@@ -49,7 +49,7 @@ function open_session_permission() {
  */
 function _open_session_access($op) {
 
-  switch($op) {
+  switch ($op) {
     case 'view':
       return (user_access('view own sessions') || user_access('view all sessions'));
       break;
@@ -75,7 +75,7 @@ function _open_session_get_sessions($uid) {
   $sessions = array();
 
   $result = db_select('sessions', 's')
-    ->fields('s', array('sid','ssid', 'hostname', 'timestamp'))
+    ->fields('s', array('sid', 'ssid', 'hostname', 'timestamp'))
     ->condition('uid', $uid)
     ->execute();
 
@@ -112,7 +112,7 @@ function open_session_page() {
 
     $row = array(
       $session['hostname'],
-      format_interval((time() - $session['timestamp']) , 2) . t(' ago'),
+      format_interval((time() - $session['timestamp']) , 2) . ' ' . t('ago'),
     );
 
     if (_open_session_access('close')) {
@@ -214,7 +214,6 @@ function open_session_close_session_form_submit($form, &$form_state) {
  * @param string
  *   hash created from the session hostname and session id
  *
- * @see drupal_
  */
 function _open_session_close_session($uid, $hash) {
   global $is_https, $user;
@@ -225,7 +224,7 @@ function _open_session_close_session($uid, $hash) {
     $sess_hash = drupal_hash_base64($session['sid'] . $session['hostname']);
     if ($sess_hash == $hash) {
       db_delete('sessions')->condition($is_https ? 'ssid' : 'sid', $session['sid'])->execute();
-      drupal_set_message("The session has been closed.");
+      drupal_set_message(t("The session has been closed."));
       break;
     }
   }

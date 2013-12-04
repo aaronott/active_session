@@ -94,7 +94,7 @@ function open_session_page() {
 
   $headers = array(t('IP Address'), t('Last Active'));
   if (_open_session_access('close')) {
-    $headers += array(t('Action'));
+    $headers[] = t('Action');
   }
 
   $rows = array();
@@ -116,7 +116,7 @@ function open_session_page() {
     );
 
     if (_open_session_access('close')) {
-      $row += array($action);
+      $row[] = $action;
     }
 
     $rows[] = $row;

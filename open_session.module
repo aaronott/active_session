@@ -145,11 +145,24 @@ function open_session_page($view = 'self') {
     $rows[] = $row;
   }
 
-    // Allow another module to alter this information.
-    drupal_alter('open_session_rows', $rows);
-    drupal_alter('open_session_headers', $headers);
+  // Allow another module to alter this information.
+  drupal_alter('open_session_rows', $rows);
+  drupal_alter('open_session_headers', $headers);
 
-  return theme('table', array('header' => $headers, 'rows' => $rows, 'empty' => t('No sessions to list')));
+  $table = array('header' => $headers, 'rows' => $rows, 'empty' => t('No sessions to list'));
+
+  if (user_access('view all sessions')) {
+    if ($view == 'all') {
+      $link = l(t('View my open sessions'), 'open_sessions');
+    }
+    else {
+      $link = l(t('View all open sessions'), 'open_sessions/all');
+    }
+
+    $table['caption'] = $link;
+  }
+
+  return theme('table', $table);
 }
 
 /**

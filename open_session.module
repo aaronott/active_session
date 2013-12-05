@@ -108,6 +108,10 @@ function open_session_page($view = 'self') {
     $headers[] = t('Action');
   }
 
+  if ($view == 'all') {
+    array_unshift($headers, t('uid'));
+  }
+
   $rows = array();
   $uid = ($view == 'all') ? 0 : $user->uid;
   $sessions = _open_session_get_sessions($uid);
@@ -129,6 +133,10 @@ function open_session_page($view = 'self') {
 
     if (_open_session_access('close')) {
       $row[] = $action;
+    }
+
+    if ($view == 'all') {
+      array_unshift($row, $session['uid']);
     }
 
     // Allow another module to alter this information.

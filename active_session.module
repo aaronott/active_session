@@ -1,38 +1,38 @@
 <?php
 /**
  * @file
- * Main module file for open session
+ * Main module file for active session
  */
 
 /**
  * Implements hook_menu().
  */
-function open_session_menu() {
+function active_session_menu() {
 
-  $items['open_sessions'] = array(
-    'title' => 'Open Sessions',
-    'description' => 'A list of open sessions for the current user.',
-    'page callback' => 'open_session_page',
-    'access callback' => '_open_session_access',
+  $items['active_sessions'] = array(
+    'title' => 'Active Sessions',
+    'description' => 'A list of active sessions for the current user.',
+    'page callback' => 'active_session_page',
+    'access callback' => '_active_session_access',
     'access arguments' => array('view'),
     'type' => MENU_CALLBACK,
   );
 
-  $items['open_sessions/all'] = array(
-    'title' => 'All Open Sessions',
-    'description' => 'A list of open sessions for all users.',
-    'page callback' => 'open_session_page',
+  $items['active_sessions/all'] = array(
+    'title' => 'All active Sessions',
+    'description' => 'A list of active sessions for all users.',
+    'page callback' => 'active_session_page',
     'page arguments' => array('all'),
     'access arguments' => array('view all sessions'),
     'type' => MENU_CALLBACK,
   );
 
-  $items['open_session/%/%/close'] = array(
+  $items['active_session/%/%/close'] = array(
     'title' => 'Close a Session',
-    'description' => 'A list of open sessions for the current user.',
+    'description' => 'A list of active sessions for the current user.',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('open_session_close_session_form', 1, 2),
-    'access callback' => '_open_session_access',
+    'page arguments' => array('active_session_close_session_form', 1, 2),
+    'access callback' => '_active_session_access',
     'access arguments' => array('close'),
     'type' => MENU_CALLBACK,
   );
@@ -43,7 +43,7 @@ function open_session_menu() {
 /**
  * Implements hook_permission().
  */
-function open_session_permission() {
+function active_session_permission() {
   return array(
     'view own sessions' => array('title' => t('View own sessions')),
     'view all sessions' => array('title' => t('View all sessions')),
@@ -54,9 +54,9 @@ function open_session_permission() {
 }
 
 /**
- * Implements access controls for open_session.
+ * Implements access controls for active_session.
  */
-function _open_session_access($op) {
+function _active_session_access($op) {
 
   switch ($op) {
     case 'view':
@@ -80,7 +80,7 @@ function _open_session_access($op) {
  *   Array of session data.
  *
  */
-function _open_session_get_sessions($uid = 0) {
+function _active_session_get_sessions($uid = 0) {
   $sessions = array();
 
   $result = db_select('sessions', 's')
@@ -90,7 +90,7 @@ function _open_session_get_sessions($uid = 0) {
     ->execute();
 
   while ($record = $result->fetchAssoc()) {
-    drupal_alter('open_session_record', $record);
+    drupal_alter('active_session_record', $record);
     $sessions[] = $record;
   }
 
@@ -98,13 +98,13 @@ function _open_session_get_sessions($uid = 0) {
 }
 
 /**
- * Display the open sessions for the current user.
+ * Display the active sessions for the current user.
  */
-function open_session_page($view = 'self') {
+function active_session_page($view = 'self') {
   global $user;
 
   $headers = array(t('IP Address'), t('Last Active'));
-  if (_open_session_access('close')) {
+  if (_active_session_access('close')) {
     $headers[] = t('Action');
   }
 
@@ -114,7 +114,7 @@ function open_session_page($view = 'self') {
 
   $rows = array();
   $uid = ($view == 'all') ? 0 : $user->uid;
-  $sessions = _open_session_get_sessions($uid);
+  $sessions = _active_session_get_sessions($uid);
 
   foreach ($sessions as $session) {
 
@@ -123,7 +123,7 @@ function open_session_page($view = 'self') {
       $action = t('Current Session');
     }
     else {
-      $action = l(t('Close session'), 'open_session/' . $user->uid . '/' . $hash . '/close');
+      $action = l(t('Close session'), 'active_session/' . $user->uid . '/' . $hash . '/close');
     }
 
     $row = array(
@@ -131,7 +131,7 @@ function open_session_page($view = 'self') {
       format_interval((time() - $session['timestamp']) , 2) . ' ' . t('ago'),
     );
 
-    if (_open_session_access('close')) {
+    if (_active_session_access('close')) {
       $row[] = $action;
     }
 
@@ -140,23 +140,23 @@ function open_session_page($view = 'self') {
     }
 
     // Allow another module to alter this information.
-    drupal_alter('open_session_row', $row);
+    drupal_alter('active_session_row', $row);
 
     $rows[] = $row;
   }
 
   // Allow another module to alter this information.
-  drupal_alter('open_session_rows', $rows);
-  drupal_alter('open_session_headers', $headers);
+  drupal_alter('active_session_rows', $rows);
+  drupal_alter('active_session_headers', $headers);
 
   $table = array('header' => $headers, 'rows' => $rows, 'empty' => t('No sessions to list'));
 
   if (user_access('view all sessions')) {
     if ($view == 'all') {
-      $link = l(t('View my open sessions'), 'open_sessions');
+      $link = l(t('View my active sessions'), 'active_sessions');
     }
     else {
-      $link = l(t('View all open sessions'), 'open_sessions/all');
+      $link = l(t('View all active sessions'), 'active_sessions/all');
     }
 
     $table['caption'] = $link;
@@ -170,10 +170,10 @@ function open_session_page($view = 'self') {
  *
  * Create a block to display this data.
  */
-function open_session_block_info() {
+function active_session_block_info() {
 
-  $blocks['open_session'] = array(
-    'info' => t('Open Sessions'),
+  $blocks['active_session'] = array(
+    'info' => t('Active Sessions'),
     'status' => TRUE,
     'region' => 'footer',  // Not usually provided.
   );
@@ -186,11 +186,11 @@ function open_session_block_info() {
  *
  * This hook generates the contents of the blocks themselves.
  */
-function open_session_block_view($delta = '') {
+function active_session_block_view($delta = '') {
 
   switch ($delta) {
-    case 'open_session':
-      $block['content'] = open_session_contents();
+    case 'active_session':
+      $block['content'] = active_session_contents();
       break;
   }
   return $block;
@@ -199,17 +199,17 @@ function open_session_block_view($delta = '') {
 /**
  * A module-defined block content function.
  */
-function open_session_contents() {
+function active_session_contents() {
   global $user;
 
   if ($user->uid > 0) {
-    $sessions = _open_session_get_sessions($user->uid);
+    $sessions = _active_session_get_sessions($user->uid);
     $count = sizeof($sessions);
     $count--; //
 
     if ($count > 0) {
-      $markup  = t('Open in @count other @location', array('@count' => $count, '@location' => format_plural($count, t('location'), t('locations'))));
-      $markup .= ' ' . l(t('Details'), 'open_sessions', array('attributes' => array('target' => '_blank')));
+      $markup  = t('Active in @count other @location', array('@count' => $count, '@location' => format_plural($count, t('location'), t('locations'))));
+      $markup .= ' ' . l(t('Details'), 'active_sessions', array('attributes' => array('target' => '_blank')));
       return array('#markup' => $markup);
     }
   }
@@ -222,7 +222,7 @@ function open_session_contents() {
  * Implements hook_form().
  *
  */
-function open_session_close_session_form($form, &$form_state, $uid, $hash) {
+function active_session_close_session_form($form, &$form_state, $uid, $hash) {
   $args = func_get_args();
 
   $form['uid'] = array(
@@ -235,14 +235,14 @@ function open_session_close_session_form($form, &$form_state, $uid, $hash) {
     '#value' => $hash,
   );
 
-  return confirm_form($form, t('Are sure you want to close this session?'), 'open_sessions', '', t('Close session'), t('Cancel'));
+  return confirm_form($form, t('Are sure you want to close this session?'), 'active_sessions', '', t('Close session'), t('Cancel'));
 }
 
 /**
  * Implements hook_form_submit().
  */
-function open_session_close_session_form_submit($form, &$form_state) {
-  _open_session_close_session($form_state['values']['uid'], $form_state['values']['hash']);
+function active_session_close_session_form_submit($form, &$form_state) {
+  _active_session_close_session($form_state['values']['uid'], $form_state['values']['hash']);
 }
 
 /**
@@ -255,10 +255,10 @@ function open_session_close_session_form_submit($form, &$form_state) {
  *   hash created from the session hostname and session id
  *
  */
-function _open_session_close_session($uid, $hash) {
+function _active_session_close_session($uid, $hash) {
   global $is_https, $user;
 
-  $sessions = _open_session_get_sessions($uid);
+  $sessions = _active_session_get_sessions($uid);
 
   foreach ($sessions as $session) {
     $sess_hash = drupal_hash_base64($session['sid'] . $session['hostname']);
@@ -269,5 +269,5 @@ function _open_session_close_session($uid, $hash) {
     }
   }
 
-  drupal_goto('open_sessions');
+  drupal_goto('active_sessions');
 }
